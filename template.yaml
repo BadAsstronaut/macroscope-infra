@@ -9,6 +9,7 @@ Globals:
   Function:
     Runtime: python3.9
     Timeout: 3
+    Role: !GetAtt BucketIamRole.Arn
     Handler: main.handler
 
 Parameters:
@@ -21,7 +22,7 @@ Parameters:
   SnsPolicyRole:
     Type: String
 
-  SourceS3Bucket:
+  MacroscopeS3Bucket:
     Type: String
 
   SourceBucketRole:
@@ -56,19 +57,47 @@ Resources:
                 - s3:Put*
               Resource: !GetAtt S3Bucket.Arn
 
+  SharedLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      Description: Shared functionality between lambdas
+      ContentUri: layers/shared
+    Metadata:
+      BuildMethod: python3.8
+
   HandleMacroSNSEventFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: handle_macro_sns_event/
-      Role: !GetAtt BucketIamRole.Arn
       Environment:
         Variables:
-          SOURCE_S3_BUCKET: !Ref SourceS3Bucket
-          SOURCE_S3_BUCKET_ROLE: !Ref SourceS3BucketRole
+          SOURCE_S3_BUCKET: !Ref MacroscopeS3Bucket
+          SOURCE_S3_BUCKET_ROLE: !Ref MacroscopeS3BucketRole
           TARGET_S3_BUCKET: !Ref S3Bucket
+      Layers:
+        - !Ref SharedLayer
       Events:
         SnsEvent:
           Type: SNS
           Properties:
             Region: !Ref SnsRegion
             Topic: !Ref SnsTopicArn
+
+  HandleS3EventFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handle_s3_event/
+      Environment:
+        Variables:
+          TARGET_S3_BUCKET: !Ref MacroscopeS3Bucket
+          TARGET_S3_BUCKET_ROLE: !Ref MacroscopeS3BucketRole
+          SOURCE_S3_BUCKET: !Ref S3Bucket
+      Layers:
+        - !Ref SharedLayer
+      Events:
+        S3Event:
+          Type: S3
+          Properties:
+            Bucket: !Ref S3Bucket
+            Events:
+              - s3:ObjectCreated:*

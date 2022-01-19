@@ -11,16 +11,16 @@ import boto3
 import pandas as pd
 
 
-local_session = boto3.Session()
-local_s3_client = local_session.client('s3')
-
 SOURCE_S3_BUCKET = os.environ['SOURCE_S3_BUCKET']
 SOURCE_S3_BUCKET_ROLE = os.environ['SOURCE_S3_BUCKET_ROLE']
 TARGET_S3_BUCKET = os.environ['TARGET_S3_BUCKET']
 
-def dataframe_to_parquet(dataframe: pd.DataFrame) -> io.BaseIO:
+own_acct_session = boto3.Session()
+own_acct_s3_client = own_acct_session.client('s3')
+
+def dataframe_to_parquet(dataframe: pd.DataFrame) -> io.IOBase:
     '''
-    Uses pd to convert a BaseIO type from csv to parquet
+    Uses pd to convert a IOBase type from csv to parquet
     '''
     result = io.BytesIO()
     dataframe.to_parquet(result)
@@ -28,14 +28,14 @@ def dataframe_to_parquet(dataframe: pd.DataFrame) -> io.BaseIO:
     return result
 
 
-def save_target_s3(file: io.BaseIO, path: str) -> None:
+def save_target_s3(file: io.IOBase, path: str) -> None:
     ''' Saves the file to the target S3 path on the local account bucket '''
-    local_s3_client.put_object(Body=file,
+    own_acct_s3_client.put_object(Body=file,
                                Bucket=TARGET_S3_BUCKET,
                                Key=path)
 
 
-def get_s3_object(bucket: str, path: str, session: boto3.Session) -> io.BaseIO:
+def get_s3_object(bucket: str, path: str, session: boto3.Session) -> io.IOBase:
     '''
     Gets the S3 object
     '''
