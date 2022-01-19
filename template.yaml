@@ -21,38 +21,54 @@ Parameters:
   SnsPolicyRole:
     Type: String
 
-  TargetS3Bucket:
+  SourceS3Bucket:
     Type: String
 
-  TargetBucketRole:
+  SourceBucketRole:
     Type: String
 
 Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+
+  BucketIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: lambda_s3
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              Effect: Allow
+              Action:
+                - s3:Delete*
+                - s3:Get*
+                - s3:List*
+                - s3:Put*
+              Resource: !GetAtt S3Bucket.Arn
+
   HandleMacroSNSEventFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: handle_macro_sns_event/
+      Role: !GetAtt BucketIamRole.Arn
+      Environment:
+        Variables:
+          SOURCE_S3_BUCKET: !Ref SourceS3Bucket
+          SOURCE_S3_BUCKET_ROLE: !Ref SourceS3BucketRole
+          TARGET_S3_BUCKET: !Ref S3Bucket
       Events:
         SnsEvent:
           Type: SNS
           Properties:
             Region: !Ref SnsRegion
             Topic: !Ref SnsTopicArn
-
-
-
-
-
-Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out mor1e about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldApi:
-    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
-  HelloWorldFunction:
-    Description: "Hello World Lambda Function ARN"
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt HelloWorldFunctionRole.Arn
