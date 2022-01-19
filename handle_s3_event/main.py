@@ -41,8 +41,8 @@ def get_s3_object(path: str) -> io.IOBase:
 def save_target_s3(file: io.IOBase, path: str, session: boto3.Session) -> None:
     ''' Saves the file to the target S3 path on the local account bucket '''
     session.put_object(Body=file,
-                                  Bucket=TARGET_S3_BUCKET,
-                                  Key=path)
+                       Bucket=TARGET_S3_BUCKET,
+                       Key=path)
 
 
 def handler(event: dict, _) -> None:

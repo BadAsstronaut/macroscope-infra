@@ -12,10 +12,12 @@ RUN pip3 --disable-pip-version-check --no-cache-dir install boto3 \
                                                             aws-sam-cli \
                                                             requests \
     && rm -rf /tmp/pip-tmp \
+    && python3 -m pip install --upgrade pip \
     && curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
     && unzip awscliv2.zip \
     && yes '' | ./aws/install \
-    && apt-get update
+    && apt-get update \
+    && apt-get install -y python3-pip
 
 # [Optional] Uncomment this section to install additional OS packages.
 # RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
