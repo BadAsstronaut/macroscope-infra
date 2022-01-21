@@ -15,6 +15,7 @@ TARGET_S3_PREFIX = os.environ['TARGET_S3_PREFIX']
 own_acct_session = boto3.Session()
 own_acct_s3_client = own_acct_session.client('s3')
 
+
 def get_cross_account_session() -> boto3.Session:
     '''
     Reference: https://aws.amazon.com/premiumsupport/knowledge-center/lambda-function-assume-iam-role/

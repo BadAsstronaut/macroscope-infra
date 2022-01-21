@@ -72,14 +72,14 @@ def process_s3_obj(key: str,
     # Convert the time index to datetimes
     dataframe[datetime_series] = pd.to_datetime(dataframe[datetime_series])
     aggregation = {'awsRegion': 'unique',
-                    'userAgent': 'unique',
-                    'principalId': 'unique',
-                    'accountId': 'unique',
-                    'eventType': 'unique',
-                    'eventName': 'unique',
-                    'eventSource': 'unique',
-                    'isError': 'sum'}
-    dataframe.set_index(datetime_series).resample('5min').aggregate(aggregation)
+                   'userAgent': 'unique',
+                   'principalId': 'unique',
+                   'accountId': 'unique',
+                   'eventType': 'unique',
+                   'eventName': 'unique',
+                   'eventSource': 'unique',
+                   'isError': 'sum'}
+    dataframe = dataframe.set_index(datetime_series).resample('5min').aggregate(aggregation)
     pq_data = dataframe_to_parquet(dataframe)
     save_target_s3(pq_data, f'/ms-{datetime.now().replace(microsecond=0).isoformat()}.parquet')
 
