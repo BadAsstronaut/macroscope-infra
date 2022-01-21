@@ -1,5 +1,6 @@
 ''' Handles S3 upload event '''
 
+from datetime import datetime
 import io
 import os
 
@@ -9,6 +10,7 @@ import boto3
 TARGET_S3_BUCKET = os.environ['TARGET_S3_BUCKET']
 TARGET_S3_BUCKET_ROLE = os.environ['TARGET_S3_BUCKET_ROLE']
 SOURCE_S3_BUCKET = os.environ['SOURCE_S3_BUCKET']
+TARGET_S3_PREFIX = os.environ['TARGET_S3_PREFIX']
 
 own_acct_session = boto3.Session()
 own_acct_s3_client = own_acct_session.client('s3')
@@ -45,12 +47,13 @@ def save_target_s3(file: io.IOBase, path: str, session: boto3.Session) -> None:
                        Key=path)
 
 
-def handler(event: dict, _) -> None:
+def handler(_, __) -> None:
     ''' Handles uploading a file from the local account to the Macroscope S3 bucket '''
     x_acct_session = get_cross_account_session()
 
     try:
-        obj_key = event['Records'][0]['s3']['object']['key']
+        obj_key = datetime.utcnow().replace(microsecond=0).isoformat()
+        obj_key = f'{TARGET_S3_PREFIX}{obj_key}.parquet'
     except KeyError as key_err:
         raise Exception('S3 event did not conform to the expected payload schema') from key_err
 

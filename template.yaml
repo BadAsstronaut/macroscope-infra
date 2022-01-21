@@ -32,6 +32,14 @@ Parameters:
     Type: String
     Default: 'arn:aws:iam::451846548917:role/mickey-interview-CandidateCrossAccountRole-1K16TWUUK3NHF'
 
+  MacroscopeAcctId:
+    Type: String
+    Default: '451846548917'
+
+  MacroscopeS3OutputPath:
+    Type: String
+    Default: '/infra-eng/mickey/output/'
+
 Resources:
   BucketIamRole:
     Type: AWS::IAM::Role
@@ -123,6 +131,7 @@ Resources:
       Environment:
         Variables:
           TARGET_S3_BUCKET: !Ref MacroscopeS3Bucket
+          TARGET_S3_PREFIX: !Ref MacroscopeS3OutputPath
           TARGET_S3_BUCKET_ROLE: !Ref MacroscopeS3BucketRole
           SOURCE_S3_BUCKET: !Ref IntegrationBucketName
       Layers:
@@ -142,3 +151,30 @@ Resources:
       DependsOn: LambdaS3Permission
       Properties:
         BucketName: !Ref IntegrationBucketName
+
+  MacroIntegrationBucketCrossAcctRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${MacroscopeAcctId}:*"
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: integration_s3
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:ListObject
+              Resource: !Sub 'arn:aws:s3:::${IntegrationBucketName}/'
+              Condition:
+                StringLike:
+                  s3:prefix:
+                    - /
+

@@ -18,6 +18,7 @@ TARGET_S3_BUCKET = os.environ['TARGET_S3_BUCKET']
 own_acct_session = boto3.Session()
 own_acct_s3_client = own_acct_session.client('s3')
 
+
 def dataframe_to_parquet(dataframe: pd.DataFrame) -> io.IOBase:
     '''
     Uses pd to convert a IOBase type from csv to parquet
@@ -31,8 +32,8 @@ def dataframe_to_parquet(dataframe: pd.DataFrame) -> io.IOBase:
 def save_target_s3(file: io.IOBase, path: str) -> None:
     ''' Saves the file to the target S3 path on the local account bucket '''
     own_acct_s3_client.put_object(Body=file,
-                               Bucket=TARGET_S3_BUCKET,
-                               Key=path)
+                                  Bucket=TARGET_S3_BUCKET,
+                                  Key=path)
 
 
 def get_s3_object(bucket: str, path: str, session: boto3.Session) -> io.IOBase:
@@ -61,11 +62,16 @@ def get_cross_account_session() -> boto3.Session:
                          aws_session_token=creds['SessionToken'])
 
 
-def process_s3_obj(key: str, session: boto3.Session) -> None:
+def process_s3_obj(key: str,
+                   session: boto3.Session,
+                   datetime_series: str = 'eventTime') -> None:
     ''' Handles processing the s3 file and uploading the updated result  '''
     raw_file = get_s3_object(SOURCE_S3_BUCKET, key, session)
     dataframe = pd.read_csv(raw_file)
-    dataframe.resample('5min').sum()
+
+    # Convert the time index to datetimes
+    dataframe[datetime_series] = pd.to_datetime(dataframe[datetime_series])
+    dataframe.set_index(datetime_series).resample('5min').sum()
     pq_data = dataframe_to_parquet(dataframe)
     save_target_s3(pq_data, f'/{datetime.now().isoformat()}.parquet')
 
