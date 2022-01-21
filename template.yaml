@@ -12,25 +12,27 @@ Globals:
     Handler: main.handler
 
 Parameters:
+  IntegrationBucketName:
+    Type: String
+    Default: macroscope-test-integration
+
   SnsTopicArn:
     Type: String
+    Default: arn:aws:sns:us-east-2:451846548917:mickey-infra-eng-interview
 
   SnsRegion:
     Type: String
-
-  SnsPolicyRole:
-    Type: String
+    Default: us-east-2
 
   MacroscopeS3Bucket:
     Type: String
+    Default: macroscope-interviews
 
-  SourceBucketRole:
+  MacroscopeS3BucketRole:
     Type: String
+    Default: 'arn:aws:iam::451846548917:role/mickey-interview-CandidateCrossAccountRole-1K16TWUUK3NHF'
 
 Resources:
-  S3Bucket:
-    Type: AWS::S3::Bucket
-
   BucketIamRole:
     Type: AWS::IAM::Role
     Properties:
@@ -44,6 +46,24 @@ Resources:
             Action:
               - sts:AssumeRole
       Policies:
+        - PolicyName: lambda_log
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+        - PolicyName: lambda_sts
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              Effect: Allow
+              Action:
+                - sts:AssumeRole
+              Resource: !Ref MacroscopeS3BucketRole
         - PolicyName: lambda_s3
           PolicyDocument:
             Version: '2012-10-17'
@@ -54,7 +74,7 @@ Resources:
                 - s3:Get*
                 - s3:List*
                 - s3:Put*
-              Resource: !GetAtt S3Bucket.Arn
+              Resource: !Sub 'arn:aws:s3:::${IntegrationBucketName}'
 
   SharedLayer:
     Type: AWS::Serverless::LayerVersion
@@ -66,6 +86,7 @@ Resources:
 
   HandleMacroSNSEventFunction:
     Type: AWS::Serverless::Function
+    DependsOn: BucketIamRole
     Properties:
       CodeUri: handle_macro_sns_event/
       Role: !GetAtt BucketIamRole.Arn
@@ -73,18 +94,29 @@ Resources:
         Variables:
           SOURCE_S3_BUCKET: !Ref MacroscopeS3Bucket
           SOURCE_S3_BUCKET_ROLE: !Ref MacroscopeS3BucketRole
-          TARGET_S3_BUCKET: !Ref S3Bucket
+          TARGET_S3_BUCKET: !Ref IntegrationBucketName
       Layers:
         - !Ref SharedLayer
-      Events:
-        SnsEvent:
-          Type: SNS
-          Properties:
-            Region: !Ref SnsRegion
-            Topic: !Ref SnsTopicArn
+
+  LambdaSNSPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      EventSourceToken: String
+      FunctionName: !Ref HandleMacroSNSEventFunction
+      Principal: sns.amazonaws.com
+
+  SNSSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Region: !Ref SnsRegion
+      TopicArn: !Ref SnsTopicArn
+      Protocol: lambda
+      Endpoint: !GetAtt HandleMacroSNSEventFunction.Arn
 
   HandleS3EventFunction:
     Type: AWS::Serverless::Function
+    DependsOn: BucketIamRole
     Properties:
       CodeUri: handle_s3_event/
       Role: !GetAtt BucketIamRole.Arn
@@ -92,13 +124,21 @@ Resources:
         Variables:
           TARGET_S3_BUCKET: !Ref MacroscopeS3Bucket
           TARGET_S3_BUCKET_ROLE: !Ref MacroscopeS3BucketRole
-          SOURCE_S3_BUCKET: !Ref S3Bucket
+          SOURCE_S3_BUCKET: !Ref IntegrationBucketName
       Layers:
         - !Ref SharedLayer
-      Events:
-        S3Event:
-          Type: S3
-          Properties:
-            Bucket: !Ref S3Bucket
-            Events:
-              - s3:ObjectCreated:*
+
+  LambdaS3Permission:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      FunctionName: !GetAtt HandleS3EventFunction.Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: s3.amazonaws.com
+      SourceAccount: !Ref 'AWS::AccountId'
+      SourceArn: !Sub 'arn:aws:s3:::${IntegrationBucketName}'
+
+  S3Bucket:
+      Type: AWS::S3::Bucket
+      DependsOn: LambdaS3Permission
+      Properties:
+        BucketName: !Ref IntegrationBucketName
