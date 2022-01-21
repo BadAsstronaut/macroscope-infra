@@ -15,7 +15,6 @@ TARGET_S3_PREFIX = os.environ['TARGET_S3_PREFIX']
 own_acct_session = boto3.Session()
 own_acct_s3_client = own_acct_session.client('s3')
 
-
 def get_cross_account_session() -> boto3.Session:
     '''
     Reference: https://aws.amazon.com/premiumsupport/knowledge-center/lambda-function-assume-iam-role/
@@ -47,15 +46,16 @@ def save_target_s3(file: io.IOBase, path: str, session: boto3.Session) -> None:
                        Key=path)
 
 
-def handler(_, __) -> None:
+def handler(event: dict, _) -> None:
     ''' Handles uploading a file from the local account to the Macroscope S3 bucket '''
     x_acct_session = get_cross_account_session()
 
     try:
-        obj_key = datetime.utcnow().replace(microsecond=0).isoformat()
-        obj_key = f'{TARGET_S3_PREFIX}{obj_key}.parquet'
+        obj_key = event['Records'][0]['s3']['object']['key']
+        upload_key = datetime.utcnow().replace(microsecond=0).isoformat()
+        upload_key = f'{TARGET_S3_PREFIX}{obj_key}.parquet'
     except KeyError as key_err:
         raise Exception('S3 event did not conform to the expected payload schema') from key_err
 
     s3_obj = get_s3_object(obj_key)
-    save_target_s3(s3_obj, obj_key, x_acct_session)
+    save_target_s3(s3_obj, upload_key, x_acct_session)

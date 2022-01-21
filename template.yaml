@@ -160,7 +160,7 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              AWS: !Sub "arn:aws:iam::${MacroscopeAcctId}:*"
+              AWS: !Ref MacroscopeAcctId
             Action:
               - sts:AssumeRole
       Policies:
@@ -172,9 +172,8 @@ Resources:
               Action:
                 - s3:GetObject
                 - s3:ListObject
-              Resource: !Sub 'arn:aws:s3:::${IntegrationBucketName}/'
+              Resource: !Sub 'arn:aws:s3:::${IntegrationBucketName}/*'
               Condition:
                 StringLike:
                   s3:prefix:
-                    - /
-
+                    - 'ms-*'
