@@ -8,7 +8,8 @@ Description: >
 Globals:
   Function:
     Runtime: python3.9
-    Timeout: 3
+    Timeout: 30
+    MemorySize: 512
     Handler: main.handler
 
 Parameters:
@@ -110,7 +111,7 @@ Resources:
     Type: AWS::Lambda::Permission
     Properties:
       Action: lambda:InvokeFunction
-      EventSourceToken: String
+      SourceArn: !Ref SnsTopicArn
       FunctionName: !Ref HandleMacroSNSEventFunction
       Principal: sns.amazonaws.com
 

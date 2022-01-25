@@ -54,7 +54,7 @@ def get_s3_object(bucket: str, path: str, session: boto3.Session) -> io.IOBase:
     res = s3_client.get_object(Bucket=bucket,
                                Key=path)
 
-    bytes_io = io.BytesIo(res.body.read())
+    bytes_io = io.BytesIO(res['Body'].read())
     bytes_io.seek(0)
 
     return bytes_io
@@ -69,7 +69,6 @@ def get_cross_account_session() -> boto3.Session:
     acct = sts.assume_role(RoleArn=SOURCE_S3_BUCKET_ROLE,
                            RoleSessionName='mickey-macroscope-interview')
     creds = acct['Credentials']
-
     return boto3.Session(aws_access_key_id=creds['AccessKeyId'],
                          aws_secret_access_key=creds['SecretAccessKey'],
                          aws_session_token=creds['SessionToken'])
@@ -122,7 +121,6 @@ def handler(event: dict, _) -> None:
          "/infra-eng/<your-specific-subpath>/input/2021-01-1T12:01:45-06:00.csv",
          "/infra-eng/<your-specific-subpath>/input/2021-01-1T12:03:11-06:00.csv"]}
     '''
-
     try:
         s3_object_paths = json.loads(event['Records'][0]['Sns']['Message'])['s3_objects']
     except KeyError as key_ex:
